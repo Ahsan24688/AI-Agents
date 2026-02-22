@@ -79,5 +79,4 @@ def home():
             
     return render_template_string(HTML_TEMPLATE, plan=study_plan, user_input=user_input)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+app = app
