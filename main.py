@@ -1,82 +1,91 @@
 import os
-from flask import Flask, request, render_template_string
+from flask import Flask, render_template_string, request
 from groq import Groq
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
+from pathlib import Path
 
+# 1. Load environment variables
+current_dir = Path(__file__).resolve().parent
+env_path = current_dir / '.env'
 
-load_dotenv()
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+    print("✅ .env file found and loaded!")
+else:
+    print("⚠️ .env file missing!")
 
 app = Flask(__name__)
 
-
+# 2. API Key Setup (Security ke sath)
 api_key = os.getenv("GROQ_API_KEY")
+
+if not api_key:
+    api_key = "PASTE_YOUR_NEW_GROQ_KEY_HERE" 
+
+
 client = Groq(api_key=api_key)
 
-
+# 3. HTML Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AI Study Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Study Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 20px; }
-        .chat-container { width: 450px; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; height: 600px; }
-        .chat-header { background: #667eea; color: white; padding: 15px; text-align: center; font-weight: bold; }
-        .messages { flex: 1; padding: 20px; overflow-y: auto; background: #e5ddd5; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px; border-radius: 10px; max-width: 80%; }
-        .user { align-self: flex-end; background: #dcf8c6; }
-        .ai { align-self: flex-start; background: white; }
-        .input-area { padding: 15px; border-top: 1px solid #ddd; }
-        input, select { width: 100%; padding: 8px; margin-bottom: 5px; border: 1px solid #ccc; border-radius: 5px; }
-        button { width: 100%; padding: 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        pre { white-space: pre-wrap; font-family: inherit; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     </style>
 </head>
-<body>
-    <div class="chat-container">
-        <div class="chat-header">AI Study Assistant</div>
-        <div class="messages" id="chat">
-            <div class="msg ai">Hello! Subjects aur hours likhein study plan ke liye.</div>
-            {% if user_input %}
-                <div class="msg user"><b>Subjects:</b> {{user_input.subjects}}<br><b>Hours:</b> {{user_input.hours}}</div>
-            {% endif %}
-            {% if plan %}
-                <div class="msg ai"><pre>{{ plan }}</pre></div>
-            {% endif %}
+<body class="py-12 px-4">
+    <div class="max-w-3xl mx-auto glass-card p-10">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+                📚 AI Study Planner
+            </h1>
         </div>
-        <div class="input-area">
-            <form method="post">
-                <input type="text" name="subjects" placeholder="Subjects" required>
-                <input type="number" name="hours" placeholder="Daily Hours" required>
-                <select name="level"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
-                <button type="submit">Generate Plan</button>
-            </form>
+
+        <form method="POST" class="space-y-6">
+            <input type="text" name="user_input" placeholder="e.g. Learn Python in 2 weeks" 
+                   class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-purple-500" required>
+            <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition">
+                Generate Plan ✨
+            </button>
+        </form>
+
+        {% if plan %}
+        <div class="mt-10 p-8 bg-white rounded-2xl border border-purple-100 shadow-inner">
+            <h2 class="text-2xl font-bold text-purple-800 mb-4">📝 Your Plan:</h2>
+            <div class="prose max-w-none text-gray-800 whitespace-pre-line text-left">
+                {{ plan }}
+            </div>
         </div>
+        {% endif %}
     </div>
-    <script>var c = document.getElementById("chat"); c.scrollTop = c.scrollHeight;</script>
 </body>
 </html>
 """
 
 @app.route("/", methods=["GET", "POST"])
-def home():
-    study_plan = None
-    user_input = None
+def index():
+    study_plan = ""
+    user_input = ""
     if request.method == "POST":
-        subjects = request.form["subjects"]
-        hours = request.form["hours"]
-        level = request.form["level"]
-        user_input = {"subjects": subjects, "hours": hours}
-        
+        user_input = request.form.get("user_input")
         try:
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": f"Create 7-day study plan: {subjects}, {hours} hrs/day, Level: {level}"}]
-            )
-            study_plan = response.choices[0].message.content
-        except Exception as e:
-            study_plan = f"Error: {str(e)}"
             
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": f"Create a study plan for: {user_input}"}],
+                temperature=0.7,
+            )
+            study_plan = completion.choices[0].message.content
+        except Exception as e:
+            study_plan = f"Opps! Error: {str(e)}"
+
     return render_template_string(HTML_TEMPLATE, plan=study_plan, user_input=user_input)
 
-app = app
+if __name__ == "__main__":
+    app.run(debug=True)
