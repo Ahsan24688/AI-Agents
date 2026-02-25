@@ -48,7 +48,7 @@ HTML_TEMPLATE = """
         </div>
 
         <form method="POST" class="space-y-6">
-            <input type="text" name="user_input" placeholder="e.g. Learn Python in 2 weeks" 
+            <input type="text" name="user_input" placeholder=" Enter your study topic or goal..." value="{{ user_input }}"
                    class="w-full p-4 border rounded-xl outline-none focus:ring-2 focus:ring-purple-500" required>
             <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition">
                 Generate Plan ✨
